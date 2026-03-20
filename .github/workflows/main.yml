@@ -1,0 +1,47 @@
+name: Build Whisper CLI for Android
+
+on:
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26b
+          add-to-path: true
+      
+      - name: Build for arm64-v8a
+        run: |
+          mkdir -p build-android
+          cd build-android
+          
+          cmake .. \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-26 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWHISPER_BUILD_EXAMPLES=ON \
+            -DBUILD_SHARED_LIBS=OFF
+          
+          make -j$(nproc) main
+          
+          # Verify binary
+          ls -lh bin/main
+          file bin/main
+          
+          # Rename for Android
+          cp bin/main libwhisper_cli.so
+      
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-cli-arm64-v8a
+          path: build-android/libwhisper_cli.so
+          retention-days: 7
